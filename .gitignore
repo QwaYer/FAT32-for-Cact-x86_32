@@ -1,0 +1,4 @@
+*.o
+*.cctk
+test/build/
+test/test_fat32
