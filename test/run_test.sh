@@ -6,7 +6,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
 
-make -s test
+# The test binary is a native Meson target (the module itself is cross-built).
+if [ ! -f build-meson/build.ninja ]; then
+    meson setup build-meson --cross-file cross/i686-cact-clang.ini \
+        -Dkern_root=../CactKernel-x86_32 -Dlocal_repo=../LocalRepoCactOS-x86_32
+fi
+ninja -C build-meson test_fat32
 
 WORK="$(mktemp -d /tmp/kilo/fat32test.XXXXXX)"
 IMG="$WORK/esp.img"
@@ -49,7 +54,7 @@ echo "== mtools sees:"
 mdir -/ B:/
 
 echo "== running module test"
-"$ROOT/test/test_fat32" "$IMG" "$ZERO"
+"$ROOT/build-meson/test_fat32" "$IMG" "$ZERO"
 
 echo "== mtools interop on the module-modified image =="
 mdir -/ B:/

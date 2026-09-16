@@ -2,3 +2,4 @@
 *.cctk
 test/build/
 test/test_fat32
+build-meson/
