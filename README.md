@@ -9,28 +9,27 @@
 </p>
 
 <p align="center">
-  <strong>English.</strong> Out-of-tree <strong>FAT32</strong> filesystem → <strong><code>fat32.cctk</code></strong> for the Cact filesystem-module loader (<code>fs_mod</code>).<br>
-  <strong>Русский.</strong> Вынесенная из ядра файловая система <strong>FAT32</strong> → <strong><code>fat32.cctk</code></strong>.<br>
-  Монтирует EFI System Partition (ESP) через <code>fs_mount(dev)</code>; не-FAT32 устройства отвергаются, чтобы авто-детект пробовал другие модули.
+  Out-of-tree <strong>FAT32</strong> filesystem → <strong><code>fat32.cctk</code></strong> for the Cact filesystem-module loader (<code>fs_mod</code>).<br>
+  Mounts an EFI System Partition (ESP) through <code>fs_mount(dev)</code>; non-FAT32 devices are rejected so the auto-detect can try the other modules.
 </p>
 
 ---
 
-## 🎯 Purpose (Фаза 1: выбор/подготовка EFI/ESP)
+## 🎯 Purpose (Phase 1: choosing/preparing the EFI/ESP)
 
 | | |
 |---|---|
-| **ESP mount** | Открывает FAT32-раздел и отдаёт его корень как `vfs_node_t` |
-| **Detection** | Строгая проверка BPB (`FAT32`, `root_ent_cnt==0`, `fatsz16==0`, `0x55AA`, FSInfo) — `NULL` на любой не-FAT32 шапке |
-| **Directories** | Обход цепочек кластеров, **VFAT LFN** (UTF-16→UTF-8) + 8.3 fallback, case-insensitive `walk` |
-| **Files read** | `read` по файлу через FAT-цепочку (частичные чтения, много-кластерные файлы) |
+| **ESP mount** | Opens a FAT32 partition and returns its root as a `vfs_node_t` |
+| **Detection** | Strict BPB check (`FAT32`, `root_ent_cnt==0`, `fatsz16==0`, `0x55AA`, FSInfo) — `NULL` on any non-FAT32 header |
+| **Directories** | Cluster-chain traversal, **VFAT LFN** (UTF-16→UTF-8) + 8.3 fallback, case-insensitive `walk` |
+| **Files read** | `read` through the FAT chain (partial reads, multi-cluster files) |
 | **Files write** | `create`, `write` (grow/append, sparse-gap zero-fill), `truncate` (up & down), `delete` |
-| **Directories write** | `mkdir` (с `"."`/`".."` и LFN-именем), `rmdir` пустых |
+| **Directories write** | `mkdir` (with `"."`/`".."` and an LFN name), `rmdir` of empty dirs |
 
-Типичный сценарий установщика: перебрать партиции → `fs_mod_mount_type(dev, "fat32")` →
-проверить содержимое (например, `/EFI`), затем создать каталоги (`/EFI/BOOT`), удалить
-старый загрузчик при необходимости и скопировать `kernel.bin`/`BOOT*.EFI` на ESP
-обычными `write`-операциями VFS.
+A typical installer flow: walk the partitions → `fs_mod_mount_type(dev, "fat32")` →
+check the contents (e.g. `/EFI`), create directories (`/EFI/BOOT`), delete the old
+bootloader if needed, and copy `kernel.bin`/`BOOT*.EFI` onto the ESP with ordinary
+VFS `write` operations.
 
 ---
 
@@ -39,17 +38,19 @@
 **Standalone**
 
 ```sh
-make install   # auto-detects ../CactKernel-x86_32 and ../LocalRepoCactOS
-make clean
+meson setup build-meson --cross-file cross/i686-cact-clang.ini
+ninja -C build-meson             # → build-meson/fat32.cctk
+ninja -C build-meson stage       # copy into ../LocalRepoCactOS-x86_32/lib/
+ninja -C build-meson clean
 ```
 
-**Full workspace** — вместе со всеми драйверами (CactOS `DRIVERS` уже включает `FAT32`):
+**Full workspace** — together with every driver (the CactOS `DRIVERS` list already includes `FAT32`):
 
 ```sh
-make -C CactOS-x86_32 iso
+ninja -C CactOS-x86_32/build-meson iso
 ```
 
-Override paths if needed: `make KERN_ROOT=/custom/path LOCAL_REPO=/custom/path install`.
+Override paths if needed: `meson configure build-meson -Dkern_root=/custom/path -Dlocal_repo=/custom/path`.
 
 ---
 
@@ -91,7 +92,7 @@ Compiles the real module sources against kernel headers, links them with stubs,
 and drives the module on a file-backed ESP image created by `mkfs.fat` + mtools:
 
 ```sh
-make test
+ninja -C build-meson test_fat32   # host test binary (not built by default)
 ./test/run_test.sh
 ```
 
