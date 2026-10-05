@@ -1,7 +1,7 @@
 # 🌵 FAT32-for-Cact
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.2.0-orange.svg?style=for-the-badge" alt="Version: 0.2.0">
+  <img src="https://img.shields.io/badge/version-2.0.0-orange.svg?style=for-the-badge" alt="Version: 2.0.0">
   <img src="https://img.shields.io/badge/license-GPLv3-blue.svg?style=for-the-badge" alt="License: GPLv3">
   <img src="https://img.shields.io/badge/arch-i686-red.svg?style=for-the-badge" alt="Arch: i686">
   <img src="https://img.shields.io/badge/format-cctk-green.svg?style=for-the-badge" alt="Output: fat32.cctk">
@@ -59,7 +59,7 @@ Override paths if needed: `meson configure build-meson -Dkern_root=/custom/path 
 | Output | Where it goes | Purpose |
 |--------|---------------|---------|
 | **`fat32.cctk`** | derived here | Relocatable ELF (ET_REL) loaded by the kernel's `fs_mod` loader |
-| installed **`lib/fat32.cctk`** | `$(LOCAL_REPO)/lib/` | Packed into **cctkfs.img** and loaded at boot |
+| installed **`lib/fat32.cctk`** | `$(LOCAL_REPO)/lib/` | Packed into **cctkfs.img** (archive loaded at boot; the module is loaded on demand) |
 
 ---
 
