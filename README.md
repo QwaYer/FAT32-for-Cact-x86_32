@@ -73,7 +73,7 @@ int         fs_unmount(void);               // teardown (currently a no-op)
 ```
 
 Directory and file nodes expose the standard `vfs_ops_t`:
-`readdir/walk/listdir/create/mkdir/delete/rmdir` on directories and
+`readdir/walk/listdir/create/mkdir/delete/rmdir/rename2` on directories and
 `read/write/truncate` on files. Undefined kernel symbols (`kmalloc`,
 `blkdev_read`, `blkdev_write`, `memory_copy`, …) are resolved at load time via
 `ksym_resolve()`.
