@@ -35,6 +35,7 @@ static vfs_ops_t fat32_dir_ops = {
     .mkdir   = fat32_mkdir,
     .delete  = fat32_delete,
     .rmdir   = fat32_rmdir,
+    .rename2 = fat32_rename2,
 };
 
 static vfs_ops_t fat32_file_ops = {

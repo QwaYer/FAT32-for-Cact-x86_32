@@ -197,6 +197,21 @@ int main(int argc, char **argv) {
     vfs_node_t *sub = find(nd, "Sub Dir");
     CHECK(sub != NULL && sub->type == VFS_DIRECTORY, "finddir /NEWDIR/Sub Dir");
 
+    // Cross-directory rename (rename2): move /RD1/RS -> /RD2/RS.
+    CHECK(root->ops->rename2 != NULL, "dir ops expose rename2");
+    CHECK(root->ops->mkdir(root, "RD1") == 0, "mkdir /RD1");
+    CHECK(root->ops->mkdir(root, "RD2") == 0, "mkdir /RD2");
+    vfs_node_t *rd1 = find(root, "RD1");
+    vfs_node_t *rd2 = find(root, "RD2");
+    if (rd1 && rd2) {
+        CHECK(rd1->ops->mkdir(rd1, "RS") == 0, "mkdir /RD1/RS");
+        CHECK(rd1->ops->rename2(rd1, "RS", rd2, "RS") == 0,
+              "rename2 /RD1/RS -> /RD2/RS");
+        vfs_node_t *rs = find(rd2, "RS");
+        CHECK(rs != NULL && rs->type == VFS_DIRECTORY, "finddir /RD2/RS");
+        CHECK(find(rd1, "RS") == NULL, "/RD1/RS gone after rename2");
+    }
+
     // Lower-case LFN file with text content.
     CHECK(root->ops->create(root, "grub.cfg") == 0, "create /grub.cfg");
     vfs_node_t *cfg = find(root, "grub.cfg");

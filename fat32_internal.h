@@ -98,6 +98,8 @@ int fat32_create(vfs_node_t *dir, const char *name);
 int fat32_mkdir(vfs_node_t *dir, const char *name);
 int fat32_delete(vfs_node_t *dir, const char *name);
 int fat32_rmdir(vfs_node_t *dir, const char *name);
+int fat32_rename2(vfs_node_t *olddir, const char *oldname,
+                  vfs_node_t *newdir, const char *newname);
 int fat32_write_file(vfs_node_t *node, uint32_t offset, uint32_t size,
                      char *buf);
 int fat32_truncate_file(vfs_node_t *node, uint32_t length);

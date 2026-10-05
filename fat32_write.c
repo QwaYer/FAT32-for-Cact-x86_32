@@ -216,6 +216,73 @@ int fat32_rmdir(vfs_node_t *dir, const char *name) {
     return 0;
 }
 
+// ── rename (cross-directory, files and directories) ────────────────────
+
+// Locate a directory entry by name (case-insensitive) and hand back its decoded
+// fields + on-disk location, since directory VFS nodes do not carry those.
+typedef struct {
+    const char          *name;
+    int                  found;
+    struct fat32_dirent  de;
+} fat32_findloc_t;
+
+static char fat_fold_c(char c) { return (c >= 'A' && c <= 'Z') ? (char)(c + 32) : c; }
+
+static int fat_name_eq(const char *a, const char *b) {
+    while (*a && *b) {
+        if (fat_fold_c(*a) != fat_fold_c(*b)) return 0;
+        a++; b++;
+    }
+    return *a == '\0' && *b == '\0';
+}
+
+static void fat32_findloc_cb(const struct fat32_dirent *de, void *ud) {
+    fat32_findloc_t *f = (fat32_findloc_t *)ud;
+    if (f->found) return;
+    if (fat_name_eq(de->name, f->name)) { f->de = *de; f->found = 1; }
+}
+
+static int fat32_locate(struct fat32_ctx *ctx, uint32_t dir_clus,
+                        const char *name, struct fat32_dirent *out) {
+    fat32_findloc_t f;
+    f.name  = name;
+    f.found = 0;
+    memory_set(&f.de, 0, sizeof(f.de));
+    fat32_dir_iter(ctx, dir_clus, fat32_findloc_cb, &f);
+    if (!f.found) return -1;
+    *out = f.de;
+    return 0;
+}
+
+int fat32_rename2(vfs_node_t *olddir, const char *oldname,
+                  vfs_node_t *newdir, const char *newname) {
+    if (!olddir || !newdir || !oldname || !newname) return -1;
+    struct fat32_ctx *ctx = (struct fat32_ctx *)olddir->priv;
+    if (!ctx || ctx != (struct fat32_ctx *)newdir->priv) return -1; // same fs
+
+    struct fat32_dirent src, tmp;
+    if (fat32_locate(ctx, olddir->inode, oldname, &src) != 0) return -1;
+    if (fat32_locate(ctx, newdir->inode, newname, &tmp) == 0) return -1; // EEXIST
+
+    uint32_t nl = 0, no = 0;
+    if (fat32_dir_add(ctx, newdir->inode, newname, src.attr,
+                      src.cluster, src.size, &nl, &no) != 0)
+        return -1;
+
+    if (fat32_dir_clear(ctx, src.loc_clus, src.loc_off) != 0) {
+        fat32_dir_clear(ctx, nl, no);   // roll back the added entry
+        return -1;
+    }
+
+    // A moved directory's ".." must point at its new parent (2nd 32-byte slot),
+    // matching how fat32_mkdir seeds it.
+    if (src.is_dir && fat32_valid_cluster(ctx, src.cluster))
+        fat32_patch_entry(ctx, src.cluster, 32, newdir->inode, 0);
+
+    fat32_sync_fsinfo(ctx);
+    return 0;
+}
+
 // ── file write / truncate ───────────────────────────────────────────────
 
 int fat32_write_file(vfs_node_t *node, uint32_t offset, uint32_t size,
